@@ -1,0 +1,384 @@
+{% extends "base.html" %}
+{% block title %}Doelenboom - {{ org_name }}{% endblock %}
+
+{% block content %}
+
+{# ════════════════════════════════════════════════════════
+   RECURSIVE MACRO — renders one node and all its children.
+
+   Each expandable node gets a children wrapper with a stable
+   id="children-{goal.id}" so the JS in main.js can toggle it.
+   Leaf nodes (no children) get a spacer instead of a button.
+════════════════════════════════════════════════════════ #}
+{% macro render_node(node) %}
+{% set goal = node.goal %}
+{% set conf = node.confidence %}
+{% set entity_level = goal.entity.level if goal.entity else "" %}
+
+<div class="relative">
+    {# ── Node card ── #}
+    <div class="bg-white border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+        <div class="p-4 flex items-start gap-3">
+
+            {# Expand/collapse button — only rendered when the node has children #}
+            {% if node.children %}
+            <button class="mt-0.5 flex-shrink-0 text-gray-500 hover:text-primary transition-colors"
+                    onclick="toggleChildren('children-{{ goal.id }}', this)"
+                    aria-label="Uit- of inklappen">
+                <span class="material-symbols-outlined">expand_less</span>
+            </button>
+            {% else %}
+            {# Spacer keeps text aligned with expandable nodes #}
+            <span class="mt-0.5 w-6 flex-shrink-0"></span>
+            {% endif %}
+
+            {# Level icon — colour-coded by entity level #}
+            <div class="mt-0.5 flex-shrink-0">
+                {% if entity_level == "org" %}
+                <span class="material-symbols-outlined text-primary">corporate_fare</span>
+                {% elif entity_level == "domain" %}
+                <span class="material-symbols-outlined text-secondary">domain</span>
+                {% else %}
+                <span class="material-symbols-outlined text-gray-400">groups</span>
+                {% endif %}
+            </div>
+
+            {# Entity name tag + goal text #}
+            <div class="flex-grow min-w-0">
+                <div class="flex flex-wrap items-center gap-2 mb-1">
+                    <span class="text-xs font-bold uppercase tracking-wider
+                                 {% if entity_level == 'org' %}text-primary
+                                 {% elif entity_level == 'domain' %}text-secondary
+                                 {% else %}text-gray-500{% endif %}">
+                        {{ goal.entity.name if goal.entity else "—" }}
+                    </span>
+                    <span class="text-xs px-2 py-0.5 bg-gray-100 text-gray-600">
+                        {% if entity_level == "org" %}Organisatie
+                        {% elif entity_level == "domain" %}Domein
+                        {% else %}Team{% endif %}
+                    </span>
+                    {% if goal.period %}
+                    <span class="text-xs text-gray-400">{{ goal.period }}</span>
+                    {% endif %}
+                </div>
+                <p class="{% if entity_level == 'org' %}text-lg font-bold
+                           {% elif entity_level == 'domain' %}text-base font-bold
+                           {% else %}text-sm font-medium{% endif %}
+                           text-gray-900 leading-snug">
+                    {{ goal.parsed_text or goal.title }}
+                </p>
+            </div>
+
+            {# Confidence badge — traffic-light colours matching list view #}
+            <div class="flex-shrink-0 ml-2 self-center">
+                {% if conf %}
+                    {% if conf.confidence >= 7 %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        {{ conf.confidence }}/10
+                    </span>
+                    {% elif conf.confidence >= 4 %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                        {{ conf.confidence }}/10
+                    </span>
+                    {% else %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                        {{ conf.confidence }}/10
+                    </span>
+                    {% endif %}
+                {% else %}
+                <span class="text-gray-400 text-sm confidence-empty">—</span>
+                {% endif %}
+            </div>
+
+            {# GitHub link #}
+            {% if goal.github_url %}
+            <div class="flex-shrink-0 ml-2 self-center">
+                <a href="{{ goal.github_url }}"
+                   target="_blank"
+                   rel="noopener noreferrer"
+                   class="text-secondary hover:text-blue-900 inline-flex items-center gap-1 text-sm">
+                    GitHub
+                    <span class="material-symbols-outlined text-sm">open_in_new</span>
+                </a>
+            </div>
+            {% endif %}
+
+        </div>
+    </div>
+
+    {# ── Children — indented with a vertical connector line ── #}
+    {% if node.children %}
+    <div id="children-{{ goal.id }}"
+         class="ml-8 mt-2 pl-4 border-l-2 border-gray-200 space-y-2">
+        {% for child in node.children %}
+            {{ render_node(child) }}
+        {% endfor %}
+    </div>
+    {% endif %}
+
+</div>
+{% endmacro %}
+
+
+{# ════════════════════════════════════════════════════════
+   PAGE LAYOUT: filter sidebar (1/4) + main content (3/4)
+════════════════════════════════════════════════════════ #}
+<div class="flex flex-col lg:flex-row gap-8">
+
+    {# ══ FILTER SIDEBAR ══ #}
+    <aside class="w-full lg:w-1/4 flex-shrink-0">
+        <div class="bg-surface-light p-6 shadow-sm border border-gray-200 sticky top-4">
+
+            <h2 class="text-xl font-bold font-display text-primary mb-6 flex items-center">
+                <span class="material-symbols-outlined mr-2">filter_alt</span> Filters
+            </h2>
+
+            <form method="get" action="/goals/tree" class="space-y-6">
+
+                {# ── Periode type toggle ──
+                     Buttons are type="button" so they don't submit the form.
+                     Clicking a button updates the hidden input and the period
+                     dropdown (shows only matching options), then JS styling
+                     toggles the active button. The form submits on Toepassen. #}
+                <div>
+                    <label class="block text-sm font-bold text-gray-900 mb-2">Type periode</label>
+                    <div class="flex shadow-sm mb-3" role="group">
+                        {# Inline ternary keeps class on one line — avoids whitespace in
+                           the class attribute that confuses Playwright's to_have_class. #}
+                        <button type="button"
+                                data-toggle-period="quarterly"
+                                class="flex-1 py-2 px-4 text-sm font-medium border border-r-0 {{ 'text-white bg-primary border-primary' if current_period_type == 'quarterly' else 'text-gray-900 bg-white border-gray-300 hover:bg-gray-100' }}">
+                            Kwartaal
+                        </button>
+                        <button type="button"
+                                data-toggle-period="yearly"
+                                class="flex-1 py-2 px-4 text-sm font-medium border {{ 'text-white bg-primary border-primary' if current_period_type == 'yearly' else 'text-gray-900 bg-white border-gray-300 hover:bg-gray-100' }}">
+                            Jaarlijks
+                        </button>
+                    </div>
+                    {# Carries the active toggle value through form submission #}
+                    <input type="hidden" id="period-type-hidden"
+                           name="period_type_toggle"
+                           value="{{ current_period_type }}">
+                </div>
+
+                {# ── Periode select ── #}
+                <div>
+                    <label class="block text-sm font-bold text-gray-900 mb-2">Periode</label>
+                    <select id="period-select" name="period"
+                            class="block w-full pl-3 pr-10 py-2 text-sm border border-gray-300
+                                   focus:outline-none focus:ring-2 focus:ring-secondary
+                                   focus:border-secondary bg-white">
+                        <option value="">Alle perioden</option>
+                        {% for p, ptype in periods %}
+                        <option value="{{ p }}"
+                                data-type="{{ ptype }}"
+                                {% if p == current_period %}selected{% endif %}>
+                            {{ p }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                {# ── Niveau (single-select, unlike checkboxes in list view) ── #}
+                <div>
+                    <label class="block text-sm font-bold text-gray-900 mb-2" for="level-select">Niveau</label>
+                    <select id="level-select" name="level"
+                            class="block w-full pl-3 pr-10 py-2 text-sm border border-gray-300
+                                   focus:outline-none focus:ring-2 focus:ring-secondary
+                                   focus:border-secondary bg-white">
+                        <option value="">Alle Niveaus</option>
+                        {% for value, label in [("org", "Organisatie"), ("domain", "Domein"), ("team", "Team")] %}
+                        <option value="{{ value }}"
+                                {% if current_level == value %}selected{% endif %}>
+                            {{ label }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                {# ── Domein ── #}
+                <div>
+                    <label class="block text-sm font-bold text-gray-900 mb-2" for="domain-select">Domein</label>
+                    <select id="domain-select" name="domain_id"
+                            class="block w-full pl-3 pr-10 py-2 text-sm border border-gray-300
+                                   focus:outline-none focus:ring-2 focus:ring-secondary
+                                   focus:border-secondary bg-white">
+                        <option value="">Alle Domeinen</option>
+                        {% for domain in domains %}
+                        <option value="{{ domain.id }}"
+                                {% if current_domain_id == domain.id %}selected{% endif %}>
+                            {{ domain.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                {# ── Submit ── #}
+                <div class="pt-2 border-t border-gray-200">
+                    <button type="submit"
+                            class="w-full inline-flex justify-center py-2 px-4 border border-transparent
+                                   shadow-sm text-sm font-bold text-white bg-secondary
+                                   hover:bg-blue-700 focus:outline-none focus:ring-2
+                                   focus:ring-offset-2 focus:ring-secondary transition-colors">
+                        Toepassen
+                    </button>
+                </div>
+
+            </form>
+        </div>
+    </aside>
+
+    {# ══ MAIN CONTENT ══ #}
+    <section class="w-full lg:w-3/4 min-w-0">
+
+        {# Page heading + global expand/collapse button #}
+        <div class="flex justify-between items-start mb-8 gap-4">
+            <div>
+                <h2 class="text-3xl font-display font-bold text-gray-900 mb-2">Doelenboom</h2>
+                <p class="text-lg text-gray-600">
+                    Hiërarchisch overzicht van de doelstellingen op basis van bijdrage-relaties.
+                </p>
+            </div>
+            <button id="toggle-all-btn"
+                    data-collapsed="false"
+                    class="flex-shrink-0 mt-1 text-sm text-secondary hover:text-blue-800
+                           font-medium flex items-center gap-1">
+                <span class="material-symbols-outlined text-sm">unfold_less</span>
+                <span id="toggle-all-label">Alles inklappen</span>
+            </button>
+        </div>
+
+        {# ── Tree roots ── #}
+        <div class="space-y-4">
+            {% if roots %}
+                {% for node in roots %}
+                    {{ render_node(node) }}
+                {% endfor %}
+            {% else %}
+            <div class="text-center py-12 text-gray-400 italic">
+                Geen doelen gevonden met de huidige filters.
+            </div>
+            {% endif %}
+        </div>
+
+        {# ── Niet-gekoppelde doelen — only rendered when the list is non-empty ── #}
+        {% if unaligned %}
+        <div id="unaligned-section" class="mt-12 pt-8 border-t border-gray-200">
+            <h3 class="text-xl font-display font-bold text-gray-900 mb-6 flex items-center">
+                <span class="material-symbols-outlined mr-2 text-gray-400">link_off</span>
+                Niet-gekoppelde doelen
+            </h3>
+            <div class="space-y-3">
+                {% for node in unaligned %}
+                {% set goal = node.goal %}
+                {% set conf = node.confidence %}
+                <div class="bg-surface-light border border-gray-200 border-l-4 border-l-gray-400 p-4">
+                    <div class="flex flex-col md:flex-row items-start justify-between gap-4">
+                        <div class="flex-grow min-w-0">
+                            <div class="flex flex-wrap items-center gap-2 mb-1">
+                                <span class="text-xs font-bold text-gray-500">
+                                    {{ goal.entity.name if goal.entity else "—" }}
+                                </span>
+                                {% if goal.period %}
+                                <span class="text-xs text-gray-400">{{ goal.period }}</span>
+                                {% endif %}
+                            </div>
+                            <p class="text-base font-medium text-gray-900 leading-snug">
+                                {{ goal.parsed_text or goal.title }}
+                            </p>
+                            <p class="text-sm text-gray-500 mt-1">Geen bovenliggend doel geselecteerd.</p>
+                        </div>
+                        <div class="flex items-center gap-3 flex-shrink-0">
+                            {% if conf %}
+                                {% if conf.confidence >= 7 %}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">{{ conf.confidence }}/10</span>
+                                {% elif conf.confidence >= 4 %}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">{{ conf.confidence }}/10</span>
+                                {% else %}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">{{ conf.confidence }}/10</span>
+                                {% endif %}
+                            {% else %}
+                            <span class="text-gray-400 text-sm">—</span>
+                            {% endif %}
+                            {% if goal.github_url %}
+                            <a href="{{ goal.github_url }}"
+                               target="_blank"
+                               rel="noopener noreferrer"
+                               class="text-secondary hover:text-blue-900 inline-flex items-center gap-1 text-sm">
+                                GitHub
+                                <span class="material-symbols-outlined text-sm">open_in_new</span>
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+    </section>
+</div>
+
+{# ════════════════════════════════════════════════════════
+   INLINE SCRIPT — period toggle UI + links main.js
+
+   Handles two things before main.js takes over:
+     1. Show only period options matching the active toggle type.
+     2. Wire up toggle buttons to update the hidden input and
+        refresh the visible period options.
+
+   main.js handles the tree expand/collapse.
+════════════════════════════════════════════════════════ #}
+<script>
+(function () {
+    var hiddenInput = document.getElementById('period-type-hidden');
+    var periodSelect = document.getElementById('period-select');
+    var toggleBtns = document.querySelectorAll('[data-toggle-period]');
+
+    // Filter period dropdown to only show options matching the active type.
+    function applyPeriodFilter(type) {
+        periodSelect.querySelectorAll('option[data-type]').forEach(function (opt) {
+            opt.hidden = (opt.dataset.type !== type);
+        });
+        // If the current selection is now hidden, reset to "all periods".
+        var selected = periodSelect.options[periodSelect.selectedIndex];
+        if (selected && selected.dataset.type && selected.dataset.type !== type) {
+            periodSelect.value = '';
+        }
+    }
+
+    // Update button active styling.
+    function setActiveBtn(activeBtn) {
+        toggleBtns.forEach(function (btn) {
+            var isActive = (btn === activeBtn);
+            btn.classList.toggle('bg-primary', isActive);
+            btn.classList.toggle('text-white', isActive);
+            btn.classList.toggle('border-primary', isActive);
+            btn.classList.toggle('bg-white', !isActive);
+            btn.classList.toggle('text-gray-900', !isActive);
+            btn.classList.toggle('border-gray-300', !isActive);
+        });
+    }
+
+    // Apply initial state on page load.
+    if (hiddenInput.value) {
+        applyPeriodFilter(hiddenInput.value);
+    }
+
+    // Wire toggle buttons.
+    toggleBtns.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            hiddenInput.value = btn.dataset.togglePeriod;
+            setActiveBtn(btn);
+            applyPeriodFilter(btn.dataset.togglePeriod);
+        });
+    });
+}());
+</script>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', path='js/main.js') }}"></script>
+{% endblock %}
