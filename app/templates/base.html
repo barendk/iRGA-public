@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{% block title %}{{ org_name }} Goal Review{% endblock %}</title>
+
+    <!-- Rijkshuisstijl fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,300;0,400;0,700;1,400&family=RO+Sans:wght@400;700&display=swap" rel="stylesheet" />
+    <!-- Material Symbols for icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+
+    <!-- Tailwind CSS (local build) -->
+    <link href="{{ url_for('static', path='css/style.css') }}" rel="stylesheet" />
+
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="bg-background-light text-text-light antialiased flex flex-col min-h-screen">
+
+    {# ── Header: Ministry branding ── #}
+    <header class="bg-white border-b border-gray-200">
+        <div class="container mx-auto px-4 py-4 md:py-6">
+            <div class="flex items-start md:items-center space-x-4">
+                {# Rijksoverheid logo placeholder (blue box with stylized icon) #}
+                <div class="flex-shrink-0 bg-primary p-2">
+                    <svg class="w-8 h-8 md:w-12 md:h-12 text-white fill-current" viewBox="0 0 24 24">
+                        <path d="M12 2L2 7l10 5 10-5-10-5zm0 9l2.5-1.25L12 8.5l-2.5 1.25L12 11zm0 2.5l-5-2.5-5 2.5L12 22l10-8.5-5-2.5-5 2.5z" />
+                    </svg>
+                </div>
+                {% if org_header %}
+                <div>
+                    <h1 class="text-lg md:text-xl font-bold leading-tight text-gray-900 font-display">
+                        {{ org_header }}
+                    </h1>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        {# ── Navigation bar ── #}
+        <nav class="bg-white border-t border-gray-200 mt-4 shadow-sm">
+            <div class="container mx-auto px-4">
+                <div class="flex flex-wrap items-center space-x-6 overflow-x-auto">
+                    {% set nav_items = [
+                        ("Home", "/", "home"),
+                        ("Doelenoverzicht", "/goals", ""),
+                        ("Doelenboom", "/goals/tree", ""),
+                        ("Strategiekaart", "/goals/map", ""),
+                        ("Reviews", "/reviews", ""),
+                        ("PPP Status", "/status", ""),
+                        ("Admin", "/admin", "settings"),
+                    ] %}
+                    {% for label, href, icon in nav_items %}
+                        {% set is_active = request.url.path == href or
+                            (href != "/" and request.url.path.startswith(href)) %}
+                        <a href="{{ href }}"
+                           class="{% if icon %}flex items-center {% endif %}py-4 whitespace-nowrap border-b-2 transition-colors
+                                  {% if is_active %}
+                                      text-primary font-semibold border-primary
+                                  {% else %}
+                                      text-gray-600 hover:text-primary border-transparent hover:border-gray-300
+                                  {% endif %}">
+                            {% if icon %}
+                                <span class="material-symbols-outlined mr-2">{{ icon }}</span>
+                            {% endif %}
+                            {{ label }}
+                        </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    {# ── Main content ── #}
+    <main class="flex-grow container mx-auto px-4 py-8 md:py-12">
+        {% block content %}{% endblock %}
+    </main>
+
+    {# ── Footer: Rijkshuisstijl footer ── #}
+    <footer class="bg-surface-light border-t border-gray-200 py-12">
+        <div class="container mx-auto px-4 flex flex-col md:flex-row justify-between">
+            <div class="mb-8 md:mb-0 max-w-md">
+                {% if org_tagline %}
+                <h3 class="text-xl font-display italic text-gray-400 mb-4">
+                    {{ org_tagline }}
+                </h3>
+                {% endif %}
+            </div>
+            <div>
+                <h4 class="text-sm font-bold text-gray-900 mb-4 uppercase tracking-wider">
+                    Over deze site
+                </h4>
+                <ul class="space-y-2">
+                    {% for item in ["Copyright", "Privacy", "Cookies", "Toegankelijkheid", "Kwetsbaarheid melden"] %}
+                        <li>
+                            <a class="text-gray-600 hover:text-secondary hover:underline flex items-center" href="#">
+                                <span class="material-symbols-outlined text-sm mr-1">chevron_right</span>
+                                {{ item }}
+                            </a>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </footer>
+
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

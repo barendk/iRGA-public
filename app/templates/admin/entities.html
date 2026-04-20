@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% block title %}Admin - Structuurbeheer - {{ org_name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto">
+    <div class="mb-10">
+        <h2 class="text-3xl font-display font-bold text-gray-900 mb-2">
+            Organisatiestructuur Beheren
+        </h2>
+        <p class="text-lg text-gray-600 mb-6">
+            Beheer de hiërarchie en niveaus binnen het {{ org_name }} Goal Management System.
+        </p>
+
+        {# ── Success message ── #}
+        {% if success %}
+        <div class="bg-green-50 border-l-4 border-green-500 p-4 mb-6">
+            <div class="flex">
+                <span class="material-symbols-outlined text-green-500 flex-shrink-0">check_circle</span>
+                <p class="ml-3 text-sm text-green-700 font-medium">
+                    Wijzigingen succesvol opgeslagen.
+                </p>
+            </div>
+        </div>
+        {% endif %}
+
+        {# ── Error messages ── #}
+        {% if errors %}
+        <div class="bg-red-50 border-l-4 border-red-500 p-4 mb-6">
+            <div class="flex">
+                <span class="material-symbols-outlined text-red-500 flex-shrink-0">error</span>
+                <div class="ml-3">
+                    {% for error in errors %}
+                    <p class="text-sm text-red-700 font-medium">{{ error }}</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {# ── Info banner: single org constraint ── #}
+        <div class="bg-blue-50 border-l-4 border-primary p-4 mb-6">
+            <div class="flex">
+                <span class="material-symbols-outlined text-primary flex-shrink-0">info</span>
+                <p class="ml-3 text-sm text-primary font-medium">
+                    Er kan slechts één Organisatie niveau zijn.
+                </p>
+            </div>
+        </div>
+
+        <form method="post" action="/admin">
+            <input type="hidden" name="csrftoken" value="{{ request.state.csrftoken }}" />
+            {# ── Entity level table ── #}
+            <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 mb-10">
+                <table class="min-w-full divide-y divide-gray-300">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">
+                                Entiteit Naam
+                            </th>
+                            <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                                Niveau
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200 bg-white">
+                        {% for entity in entities %}
+                        <tr>
+                            <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
+                                {{ entity.name }}
+                            </td>
+                            <td class="px-3 py-4">
+                                <select name="level_{{ entity.id }}"
+                                        class="block w-48 text-sm border-gray-300 focus:ring-secondary focus:border-secondary rounded-none">
+                                    <option value="org" {% if entity.level == 'org' %}selected{% endif %}>Organisatie</option>
+                                    <option value="domain" {% if entity.level == 'domain' %}selected{% endif %}>Domein</option>
+                                    <option value="team" {% if entity.level == 'team' %}selected{% endif %}>Team</option>
+                                </select>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        {% if not entities %}
+                        <tr>
+                            <td colspan="2" class="px-6 py-8 text-center text-sm text-gray-500">
+                                Geen entiteiten gevonden. Importeer eerst doelen via de CLI.
+                            </td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+
+            {# ── Team-to-domain assignment table ── #}
+            {% if teams %}
+            <div class="mb-8">
+                <h3 class="text-2xl font-display font-bold text-gray-900 mb-6 border-b-2 border-primary pb-2">
+                    Team Toewijzing
+                </h3>
+                <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5">
+                    <table class="min-w-full divide-y divide-gray-300">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">
+                                    Team Naam
+                                </th>
+                                <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                                    Bovenliggend Domein
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200 bg-white">
+                            {% for team in teams %}
+                            <tr>
+                                <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
+                                    {{ team.name }}
+                                </td>
+                                <td class="px-3 py-4">
+                                    <select name="parent_{{ team.id }}"
+                                            class="block w-64 text-sm border-gray-300 focus:ring-secondary focus:border-secondary rounded-none">
+                                        <option value="">-- Geen domein --</option>
+                                        {% for domain in domains %}
+                                        <option value="{{ domain.id }}"
+                                                {% if team.parent_id == domain.id %}selected{% endif %}>
+                                            {{ domain.name }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+
+            {# ── Save button ── #}
+            <div class="flex justify-end mt-10">
+                <button type="submit"
+                        class="flex items-center justify-center py-2 px-8 border border-transparent shadow-sm text-base font-bold text-white bg-primary hover:bg-blue-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors">
+                    Opslaan
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

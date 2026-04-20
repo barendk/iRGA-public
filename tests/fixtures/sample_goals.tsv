@@ -1,0 +1,16 @@
+Title	URL	Assignees	Status	Sub-issues progress	Parent issue	Start Date
+Acme Corp - 2026 - Become market leader in digital services	https://github.com/example-org/goals/issues/1		In Progress			Jan 1, 2026
+Acme Corp - 2026Q1 - Become ISO certified	https://github.com/example-org/goals/issues/2		In Progress		https://github.com/example-org/goals/issues/1	Jan 1, 2026
+Engineering	https://github.com/example-org/goals/issues/10		In Progress			Jan 1, 2026
+Engineering - 2026 - Build scalable and reliable platform	https://github.com/example-org/goals/issues/11		In Progress		https://github.com/example-org/goals/issues/1	Jan 1, 2026
+Engineering - 2026Q1 - Reduce technical debt by 30%	https://github.com/example-org/goals/issues/12	charlie	In Progress		https://github.com/example-org/goals/issues/11	Jan 1, 2026
+Engineering - 2026Q1 - Implement automated deployment pipeline	https://github.com/example-org/goals/issues/13	bob	Todo		https://github.com/example-org/goals/issues/2	Jan 1, 2026
+Team Alpha	https://github.com/example-org/goals/issues/100		In Progress			Jan 1, 2026
+Team Alpha - 2026Q1 - Refactor authentication module	https://github.com/example-org/goals/issues/101	alice	In Progress		https://github.com/example-org/goals/issues/12	Jan 1, 2026
+Team Alpha - 2026Q1 - Migrate legacy database schemas	https://github.com/example-org/goals/issues/102	alice	Todo		https://github.com/example-org/goals/issues/12	Jan 15, 2026
+Team Beta	https://github.com/example-org/goals/issues/110		In Progress			Jan 1, 2026
+Team Beta - 2026Q1 - Set up CI/CD for all services	https://github.com/example-org/goals/issues/111	bob	In Progress		https://github.com/example-org/goals/issues/13	Jan 1, 2026
+Team Beta - 2026Q1 - Create deployment runbooks	https://github.com/example-org/goals/issues/112	charlie	Done		https://github.com/example-org/goals/issues/13	Jan 1, 2026
+Team Gamma	https://github.com/example-org/goals/issues/120		In Progress			Jan 1, 2026
+Team Gamma - 2026Q1 - Performance optimization sprint	https://github.com/example-org/goals/issues/121	diana	In Progress		https://github.com/example-org/goals/issues/12	Feb 1, 2026
+Team Alpha - 2026Q1 - Execute user review and implement UI changes	https://github.com/example-org/goals/issues/103	alice	Todo			Jan 15, 2026

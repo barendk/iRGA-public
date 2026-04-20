@@ -1,0 +1,458 @@
+{% extends "base.html" %}
+{% block title %}Reviews - {{ org_name }}{% endblock %}
+
+{% block content %}
+
+{# ── Macro: renders all 10 confidence radio buttons for a single goal ── #}
+{% macro confidence_radios(goal_id, prefill_confs) %}
+{% set sel = prefill_confs.get(goal_id) %}
+<div class="flex flex-wrap gap-2 mt-2">
+
+    <label class="cursor-pointer">
+        <input type="radio" class="sr-only peer" name="confidence_{{ goal_id }}" value="1"
+               {% if sel == 1 %}checked{% endif %} />
+        <span class="w-8 h-8 flex items-center justify-center border border-gray-300 rounded-full
+                     peer-checked:bg-red-700 peer-checked:border-red-700 peer-checked:text-white
+                     text-gray-600 text-xs font-bold hover:bg-gray-100 transition-colors">1</span>
+    </label>
+
+    <label class="cursor-pointer">
+        <input type="radio" class="sr-only peer" name="confidence_{{ goal_id }}" value="2"
+               {% if sel == 2 %}checked{% endif %} />
+        <span class="w-8 h-8 flex items-center justify-center border border-gray-300 rounded-full
+                     peer-checked:bg-red-600 peer-checked:border-red-600 peer-checked:text-white
+                     text-gray-600 text-xs font-bold hover:bg-gray-100 transition-colors">2</span>
+    </label>
+
+    <label class="cursor-pointer">
+        <input type="radio" class="sr-only peer" name="confidence_{{ goal_id }}" value="3"
+               {% if sel == 3 %}checked{% endif %} />
+        <span class="w-8 h-8 flex items-center justify-center border border-gray-300 rounded-full
+                     peer-checked:bg-red-400 peer-checked:border-red-400 peer-checked:text-white
+                     text-gray-600 text-xs font-bold hover:bg-gray-100 transition-colors">3</span>
+    </label>
+
+    <label class="cursor-pointer">
+        <input type="radio" class="sr-only peer" name="confidence_{{ goal_id }}" value="4"
+               {% if sel == 4 %}checked{% endif %} />
+        <span class="w-8 h-8 flex items-center justify-center border border-gray-300 rounded-full
+                     peer-checked:bg-orange-500 peer-checked:border-orange-500 peer-checked:text-white
+                     text-gray-600 text-xs font-bold hover:bg-gray-100 transition-colors">4</span>
+    </label>
+
+    <label class="cursor-pointer">
+        <input type="radio" class="sr-only peer" name="confidence_{{ goal_id }}" value="5"
+               {% if sel == 5 %}checked{% endif %} />
+        <span class="w-8 h-8 flex items-center justify-center border border-gray-300 rounded-full
+                     peer-checked:bg-orange-400 peer-checked:border-orange-400 peer-checked:text-white
+                     text-gray-600 text-xs font-bold hover:bg-gray-100 transition-colors">5</span>
+    </label>
+
+    <label class="cursor-pointer">
+        <input type="radio" class="sr-only peer" name="confidence_{{ goal_id }}" value="6"
+               {% if sel == 6 %}checked{% endif %} />
+        <span class="w-8 h-8 flex items-center justify-center border border-gray-300 rounded-full
+                     peer-checked:bg-yellow-500 peer-checked:border-yellow-500 peer-checked:text-white
+                     text-gray-600 text-xs font-bold hover:bg-gray-100 transition-colors">6</span>
+    </label>
+
+    <label class="cursor-pointer">
+        <input type="radio" class="sr-only peer" name="confidence_{{ goal_id }}" value="7"
+               {% if sel == 7 %}checked{% endif %} />
+        <span class="w-8 h-8 flex items-center justify-center border border-gray-300 rounded-full
+                     peer-checked:bg-yellow-400 peer-checked:border-yellow-400 peer-checked:text-white
+                     text-gray-600 text-xs font-bold hover:bg-gray-100 transition-colors">7</span>
+    </label>
+
+    <label class="cursor-pointer">
+        <input type="radio" class="sr-only peer" name="confidence_{{ goal_id }}" value="8"
+               {% if sel == 8 %}checked{% endif %} />
+        <span class="w-8 h-8 flex items-center justify-center border border-gray-300 rounded-full
+                     peer-checked:bg-green-500 peer-checked:border-green-500 peer-checked:text-white
+                     text-gray-600 text-xs font-bold hover:bg-gray-100 transition-colors">8</span>
+    </label>
+
+    <label class="cursor-pointer">
+        <input type="radio" class="sr-only peer" name="confidence_{{ goal_id }}" value="9"
+               {% if sel == 9 %}checked{% endif %} />
+        <span class="w-8 h-8 flex items-center justify-center border border-gray-300 rounded-full
+                     peer-checked:bg-green-600 peer-checked:border-green-600 peer-checked:text-white
+                     text-gray-600 text-xs font-bold hover:bg-gray-100 transition-colors">9</span>
+    </label>
+
+    <label class="cursor-pointer">
+        <input type="radio" class="sr-only peer" name="confidence_{{ goal_id }}" value="10"
+               {% if sel == 10 %}checked{% endif %} />
+        <span class="w-8 h-8 flex items-center justify-center border border-gray-300 rounded-full
+                     peer-checked:bg-primary peer-checked:border-primary peer-checked:text-white
+                     text-gray-600 text-xs font-bold hover:bg-gray-100 transition-colors">10</span>
+    </label>
+
+</div>
+{% endmacro %}
+
+{# ── Two-column layout: filter sidebar (1/4) + main content (3/4) ── #}
+<div class="flex flex-col lg:flex-row gap-8">
+
+    {# ════════════════════════════════════════════════════════
+       FILTER SIDEBAR
+       Separate GET form — parameters become query string.
+       The Type filter is JS-only and never submitted.
+    ════════════════════════════════════════════════════════ #}
+    <aside class="w-full lg:w-1/4 flex-shrink-0">
+        <div class="bg-surface-light p-6 shadow-sm border border-gray-200 sticky top-4">
+
+            <h2 class="text-xl font-bold font-display text-primary mb-6 flex items-center">
+                <span class="material-symbols-outlined mr-2">rate_review</span> Reviews
+            </h2>
+
+            <form method="get" action="/reviews" class="space-y-6">
+
+                {# ── Team ── #}
+                <div>
+                    <label class="block text-sm font-bold text-gray-900 mb-2" for="entity-select">Team</label>
+                    <div class="relative">
+                        <select id="entity-select" name="entity_id" data-testid="entity-select"
+                                class="block w-full pl-3 pr-10 py-2 text-sm border border-gray-300
+                                       focus:outline-none focus:ring-2 focus:ring-secondary
+                                       focus:border-secondary bg-white">
+                            <option value="">Selecteer team</option>
+                            {% for team in teams %}
+                            <option value="{{ team.id }}"
+                                    {% if selected_entity and selected_entity.id == team.id %}selected{% endif %}>
+                                {{ team.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                {# ── Type (JS-only filter — not submitted) ── #}
+                <div>
+                    <label class="block text-sm font-bold text-gray-900 mb-2" for="review-type-select">Type</label>
+                    <div class="relative">
+                        <select id="review-type-select"
+                                class="block w-full pl-3 pr-10 py-2 text-sm border border-gray-300
+                                       focus:outline-none focus:ring-2 focus:ring-secondary
+                                       focus:border-secondary bg-white">
+                            <option value="">Alle types</option>
+                            <option value="monthly">Maandelijkse Check-in</option>
+                            <option value="quarterly">Kwartaal Review</option>
+                        </select>
+                    </div>
+                </div>
+
+                {# ── Periode ── #}
+                <div>
+                    <label class="block text-sm font-bold text-gray-900 mb-2" for="cycle-select">Periode</label>
+                    <div class="relative">
+                        <select id="cycle-select" name="cycle_id" data-testid="cycle-select"
+                                class="block w-full pl-3 pr-10 py-2 text-sm border border-gray-300
+                                       focus:outline-none focus:ring-2 focus:ring-secondary
+                                       focus:border-secondary bg-white">
+                            <option value="" data-cycle-type="">Selecteer periode</option>
+                            {% for cycle in cycles %}
+                            <option value="{{ cycle.id }}"
+                                    data-cycle-type="{{ cycle.cycle_type }}"
+                                    {% if selected_cycle and selected_cycle.id == cycle.id %}selected{% endif %}>
+                                {{ cycle.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                {# ── Submit ── #}
+                <div class="pt-2 border-t border-gray-200">
+                    <button type="submit"
+                            class="w-full inline-flex justify-center py-2 px-4 border border-transparent
+                                   shadow-sm text-sm font-bold text-white bg-secondary
+                                   hover:bg-blue-700 focus:outline-none focus:ring-2
+                                   focus:ring-offset-2 focus:ring-secondary transition-colors">
+                        Tonen
+                    </button>
+                </div>
+
+            </form>
+        </div>
+    </aside>
+
+    {# ════════════════════════════════════════════════════════
+       MAIN CONTENT
+    ════════════════════════════════════════════════════════ #}
+    <section class="w-full lg:w-3/4 min-w-0">
+
+        {# ── STATE 1: No selection ── #}
+        {% if not selected_entity or not selected_cycle %}
+
+        <div data-testid="empty-state"
+             class="bg-surface-light border border-gray-200 p-12 text-center">
+            <span class="material-symbols-outlined text-6xl text-gray-300 mb-4 block"
+                  style="font-size: 4rem;">rate_review</span>
+            <h2 class="text-2xl font-display font-bold text-gray-700 mb-3">
+                Selecteer een team en reviewperiode
+            </h2>
+            <p class="text-gray-500 max-w-md mx-auto">
+                Kies een team en een periode in het zijpaneel om de review in te vullen.
+            </p>
+        </div>
+
+        {# ── STATE 2: Quarterly cycle selected ── #}
+        {% elif selected_cycle.cycle_type == 'quarterly' %}
+
+        <div class="bg-surface-light border border-gray-200 p-12 text-center">
+            <span class="material-symbols-outlined text-6xl text-gray-300 mb-4 block"
+                  style="font-size: 4rem;">construction</span>
+            <h2 class="text-2xl font-display font-bold text-gray-700 mb-3">
+                Kwartaal review
+            </h2>
+            <p class="text-gray-500 max-w-md mx-auto">
+                De kwartaalscoring wordt in een toekomstige versie van de app ondersteund.
+            </p>
+        </div>
+
+        {# ── STATE 3: Monthly cycle — full review form ── #}
+        {% else %}
+
+        <div class="bg-surface-light border border-gray-200 shadow-sm">
+
+            {# ── Card header ── #}
+            <div class="p-6 border-b border-gray-200">
+                <span class="inline-flex items-center px-2.5 py-0.5 text-xs font-bold bg-blue-100
+                             text-secondary border border-blue-200 mb-3">
+                    Maandelijkse Check-in
+                </span>
+                <h2 class="text-2xl font-display font-bold text-gray-900 mb-1">
+                    Review: {{ selected_entity.name }}
+                </h2>
+                <p class="text-gray-600">
+                    Evaluatie van de teamvoortgang, obstakels en planning voor {{ selected_cycle.name }}.
+                </p>
+            </div>
+
+            {# ── Error banner ── #}
+            {% if errors %}
+            <div data-testid="error-banner"
+                 class="mx-6 mt-6 border-l-4 border-red-600 bg-red-50 p-4">
+                <div class="flex items-start">
+                    <span class="material-symbols-outlined text-red-600 mr-3 flex-shrink-0">error</span>
+                    <div>
+                        <p class="text-sm font-bold text-red-800 mb-2">
+                            Er zijn fouten opgetreden. Corrigeer de onderstaande punten en probeer opnieuw.
+                        </p>
+                        <ul class="list-disc list-inside text-sm text-red-700 space-y-1">
+                            {% for error in errors %}
+                            <li>{{ error }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {# ── POST form ── #}
+            <form method="post" action="/reviews" class="p-6 space-y-8">
+
+                {# Hidden context fields #}
+                <input type="hidden" name="csrftoken" value="{{ request.state.csrftoken }}" />
+                <input type="hidden" name="entity_id" value="{{ selected_entity.id }}" />
+                <input type="hidden" name="cycle_id" value="{{ selected_cycle.id }}" />
+
+                {# ── PPP Textareas ── #}
+                <div class="space-y-6">
+
+                    {# Voortgang #}
+                    <div>
+                        <label class="block text-sm font-bold font-display text-gray-900 mb-1"
+                               for="progress-textarea">
+                            Voortgang
+                        </label>
+                        <p class="text-sm text-gray-500 mb-2">
+                            Wat zijn de overwinningen en resultaten van het team de afgelopen periode?
+                        </p>
+                        <textarea id="progress-textarea"
+                                  name="progress"
+                                  data-testid="progress-textarea"
+                                  maxlength="5000"
+                                  class="w-full min-h-[120px] px-3 py-2 text-sm border border-gray-300
+                                         focus:outline-none focus:ring-2 focus:ring-secondary
+                                         focus:border-secondary bg-white resize-y"
+                                  placeholder="Beschrijf de voortgang en resultaten van het team...">{{ prefill.get('progress', '') }}</textarea>
+                    </div>
+
+                    {# Problemen #}
+                    <div>
+                        <label class="block text-sm font-bold font-display text-gray-900 mb-1"
+                               for="problems-textarea">
+                            Problemen
+                        </label>
+                        <p class="text-sm text-gray-500 mb-2">
+                            Welke obstakels of risico's blokkeren de voortgang van het team?
+                        </p>
+                        <textarea id="problems-textarea"
+                                  name="problems"
+                                  data-testid="problems-textarea"
+                                  maxlength="5000"
+                                  class="w-full min-h-[120px] px-3 py-2 text-sm border border-gray-300
+                                         focus:outline-none focus:ring-2 focus:ring-secondary
+                                         focus:border-secondary bg-white resize-y"
+                                  placeholder="Beschrijf de obstakels en risico's...">{{ prefill.get('problems', '') }}</textarea>
+                    </div>
+
+                    {# Plannen #}
+                    <div>
+                        <label class="block text-sm font-bold font-display text-gray-900 mb-1"
+                               for="plans-textarea">
+                            Plannen
+                        </label>
+                        <p class="text-sm text-gray-500 mb-2">
+                            Wat staat er op de planning voor de komende periode?
+                        </p>
+                        <textarea id="plans-textarea"
+                                  name="plans"
+                                  data-testid="plans-textarea"
+                                  maxlength="5000"
+                                  class="w-full min-h-[120px] px-3 py-2 text-sm border border-gray-300
+                                         focus:outline-none focus:ring-2 focus:ring-secondary
+                                         focus:border-secondary bg-white resize-y"
+                                  placeholder="Beschrijf de plannen voor de komende periode...">{{ prefill.get('plans', '') }}</textarea>
+                    </div>
+
+                </div>
+
+                {# ── Doelen & Vertrouwen Score section ── #}
+                <div class="border-t border-gray-200 pt-8 mt-8">
+
+                    <h3 class="text-xl font-display font-bold text-gray-900 mb-6">
+                        Doelen &amp; Vertrouwen Score
+                    </h3>
+
+                    {% if not goals %}
+
+                    <div class="bg-blue-50 border-l-4 border-secondary p-4">
+                        <div class="flex items-start">
+                            <span class="material-symbols-outlined text-secondary mr-3 flex-shrink-0">info</span>
+                            <p class="text-sm text-secondary">
+                                Geen doelen gevonden voor dit team in de geselecteerde periode.
+                                Zorg dat de doelen zijn geïmporteerd via de Admin-pagina.
+                            </p>
+                        </div>
+                    </div>
+
+                    {% else %}
+
+                    <div class="space-y-4">
+                        {% for goal in goals %}
+                        <div class="bg-surface-light border border-gray-200 p-6 shadow-sm">
+                            <h4 class="text-sm font-bold text-gray-900 mb-4">
+                                {{ goal.parsed_text or goal.title }}
+                            </h4>
+                            <div>
+                                <span class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+                                    Vertrouwen:
+                                </span>
+                                {{ confidence_radios(goal.id, prefill.get('confidences', {})) }}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    {% endif %}
+
+                </div>
+
+                {# ── Escalatie & Support section ── #}
+                <div class="bg-blue-50 border-l-4 border-secondary p-6 mt-6">
+
+                    <h3 class="text-lg font-display font-bold text-gray-900 mb-4">
+                        Escalatie &amp; Support
+                    </h3>
+
+                    <div class="flex items-start gap-3">
+                        <input type="checkbox"
+                               id="support_request"
+                               name="support_request"
+                               value="1"
+                               data-testid="support-checkbox"
+                               {% if prefill.get('support_request', False) %}checked{% endif %}
+                               class="mt-1 h-4 w-4 text-secondary focus:ring-secondary border-gray-300 bg-white flex-shrink-0" />
+                        <div>
+                            <label for="support_request"
+                                   class="block text-sm font-bold text-gray-900 cursor-pointer">
+                                Support request
+                            </label>
+                            <p class="text-sm text-gray-600 mt-0.5">
+                                Ik heb extra middelen of ondersteuning nodig van buiten het team.
+                            </p>
+                        </div>
+                    </div>
+
+                </div>
+
+                {# ── Submit row ── #}
+                <div class="border-t border-gray-200 pt-6 mt-6 flex justify-end items-center gap-4">
+
+                    <a href="/reviews"
+                       class="text-sm font-medium text-gray-600 hover:text-gray-900 hover:underline transition-colors">
+                        Annuleren
+                    </a>
+
+                    <button type="submit"
+                            data-testid="submit-btn"
+                            class="bg-secondary text-white py-3 px-6 text-sm font-bold
+                                   hover:bg-blue-700 focus:outline-none focus:ring-2
+                                   focus:ring-offset-2 focus:ring-secondary transition-colors">
+                        Review versturen
+                    </button>
+
+                </div>
+
+            </form>
+        </div>
+
+        {% endif %}
+
+    </section>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(function () {
+    var typeSelect = document.getElementById('review-type-select');
+    var cycleSelect = document.getElementById('cycle-select');
+
+    if (!typeSelect || !cycleSelect) return;
+
+    function filterCycles() {
+        var selectedType = typeSelect.value;
+        var options = cycleSelect.querySelectorAll('option');
+        var currentValue = cycleSelect.value;
+        var currentStillVisible = false;
+
+        options.forEach(function (opt) {
+            var cycleType = opt.getAttribute('data-cycle-type');
+            // Always show the placeholder (empty value), and show options
+            // whose cycle_type matches the filter (or no filter selected).
+            var visible = (cycleType === '') || (selectedType === '') || (cycleType === selectedType);
+            opt.hidden = !visible;
+            opt.disabled = !visible;
+            if (opt.value === currentValue && visible) {
+                currentStillVisible = true;
+            }
+        });
+
+        // If the currently selected cycle is now hidden, reset to the placeholder.
+        if (!currentStillVisible) {
+            cycleSelect.value = '';
+        }
+    }
+
+    typeSelect.addEventListener('change', filterCycles);
+
+    // Run once on load so that if there is a pre-selected cycle the type
+    // filter stays consistent (e.g. after a page reload with query params).
+    filterCycles();
+}());
+</script>
+{% endblock %}
