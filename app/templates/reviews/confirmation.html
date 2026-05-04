@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Review Ingediend - {{ org_name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto text-center py-12">
+
+    {# ── Success icon ── #}
+    <div class="flex items-center justify-center w-20 h-20 mx-auto bg-green-100 mb-6">
+        <span class="material-symbols-outlined text-green-600" style="font-size: 2.5rem;">check_circle</span>
+    </div>
+
+    {# ── Heading ── #}
+    <h2 class="text-3xl font-display font-bold text-gray-900 mb-4">Review ingediend!</h2>
+
+    {# ── Team / cycle detail ── #}
+    {% if selected_entity and selected_cycle %}
+    <p class="text-lg text-gray-600 mb-2">
+        De review voor <strong>{{ selected_entity.name }}</strong> is opgeslagen.
+    </p>
+    <p class="text-gray-500 mb-8">
+        Periode: <span class="font-medium text-gray-700">{{ selected_cycle.name }}</span>
+    </p>
+    {% else %}
+    <p class="text-lg text-gray-600 mb-8">Uw review is opgeslagen.</p>
+    {% endif %}
+
+    {# ── Actions ── #}
+    <div class="flex flex-col sm:flex-row gap-4 justify-center">
+
+        {# Back to reviews with same team/cycle pre-selected #}
+        {% if selected_entity and selected_cycle %}
+        <a href="/reviews?entity_id={{ selected_entity.id }}&cycle_id={{ selected_cycle.id }}"
+           class="inline-flex items-center justify-center gap-2 py-3 px-6 border border-gray-300
+                  text-sm font-bold text-gray-700 hover:bg-gray-100 transition-colors">
+            <span class="material-symbols-outlined text-base">edit</span>
+            Review bewerken
+        </a>
+        {% endif %}
+
+        <a href="/reviews"
+           class="inline-flex items-center justify-center gap-2 py-3 px-6 border border-transparent
+                  bg-secondary text-white text-sm font-bold hover:bg-blue-700
+                  focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-secondary transition-colors">
+            <span class="material-symbols-outlined text-base">rate_review</span>
+            Andere review invullen
+        </a>
+
+    </div>
+
+</div>
+{% endblock %}
