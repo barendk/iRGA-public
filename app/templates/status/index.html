@@ -1,0 +1,376 @@
+{% extends "base.html" %}
+{% block title %}PPP Status - {{ org_name }}{% endblock %}
+
+{% block content %}
+
+{# ════════════════════════════════════════════════════════
+   PPP STATUS DASHBOARD
+   ─────────────────────────────────────────────────────────
+   Two-column layout matching other views:
+     - Left sidebar: monthly cycle selector + domain filter
+     - Right main:   four sections (Problems, Progress, Plans, Confidence)
+
+   Template variables from the route:
+     monthly_cycles       — list[ReviewCycle] ordered period desc
+     selected_cycle       — ReviewCycle | None
+     domains              — list[StructuralEntity] (domain-level)
+     current_domain_id    — int | None
+     reviews              — list[MonthlyReview] (entity loaded)
+     confidence_rows      — list[(GoalConfidence, Goal, StructuralEntity)]
+     avg_confidence       — float | None
+     confidence_delta     — float | None  (+/- vs previous month)
+     submitted_team_count — int
+     escalated_count      — int  (support_request=True)
+     green/orange/red_count — int
+     green/orange/red_pct   — int (0-100)
+     total_scores         — int
+════════════════════════════════════════════════════════ #}
+
+<div class="flex flex-col lg:flex-row gap-8">
+
+    {# ════════════════════════════════════════════════════════
+       FILTER SIDEBAR
+       Submits as GET — params become query string.
+       Only monthly cycles are listed; domain filter is optional.
+    ════════════════════════════════════════════════════════ #}
+    <aside class="w-full lg:w-1/4 flex-shrink-0">
+        <div class="bg-surface-light p-6 shadow-sm border border-gray-200 sticky top-4">
+
+            <h2 class="text-xl font-bold font-display text-primary mb-6 flex items-center">
+                <span class="material-symbols-outlined mr-2">filter_alt</span> Filters
+            </h2>
+
+            <form method="get" action="/status" class="space-y-6">
+
+                {# ── Periode: monthly cycles only ── #}
+                <div>
+                    <label class="block text-sm font-bold text-gray-900 mb-2"
+                           for="cycle-select">Periode</label>
+                    <div class="relative">
+                        <select id="cycle-select"
+                                name="cycle_id"
+                                data-testid="cycle-select"
+                                class="block w-full pl-3 pr-10 py-2 text-sm border border-gray-300
+                                       focus:outline-none focus:ring-2 focus:ring-secondary
+                                       focus:border-secondary bg-white">
+                            {% for cycle in monthly_cycles %}
+                            <option value="{{ cycle.id }}"
+                                    {% if selected_cycle and cycle.id == selected_cycle.id %}selected{% endif %}>
+                                {{ cycle.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                {# ── Domein ── #}
+                <div>
+                    <label class="block text-sm font-bold text-gray-900 mb-2"
+                           for="domain-select">Domein</label>
+                    <div class="relative">
+                        <select id="domain-select"
+                                name="domain_id"
+                                data-testid="domain-select"
+                                class="block w-full pl-3 pr-10 py-2 text-sm border border-gray-300
+                                       focus:outline-none focus:ring-2 focus:ring-secondary
+                                       focus:border-secondary bg-white">
+                            <option value="">Alle Domeinen</option>
+                            {% for domain in domains %}
+                            <option value="{{ domain.id }}"
+                                    {% if current_domain_id == domain.id %}selected{% endif %}>
+                                {{ domain.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                {# ── Submit ── #}
+                <div class="pt-2 border-t border-gray-200">
+                    <button type="submit"
+                            class="w-full inline-flex justify-center py-2 px-4 border border-transparent
+                                   shadow-sm text-sm font-bold text-white bg-secondary
+                                   hover:bg-blue-700 focus:outline-none focus:ring-2
+                                   focus:ring-offset-2 focus:ring-secondary transition-colors">
+                        Toepassen
+                    </button>
+                </div>
+
+            </form>
+        </div>
+    </aside>
+
+    {# ════════════════════════════════════════════════════════
+       MAIN CONTENT — four sections
+    ════════════════════════════════════════════════════════ #}
+    <div class="flex-1 min-w-0 space-y-10">
+
+        {# Page heading #}
+        <div>
+            <h2 class="text-3xl font-display font-bold text-gray-900">PPP Status Dashboard</h2>
+            {% if selected_cycle %}
+            <p class="text-gray-500 mt-1">{{ selected_cycle.name }}</p>
+            {% endif %}
+        </div>
+
+        {# ══════════════════════════════════════════════════
+           SECTION 1: Problemen & Blokkades
+           All teams are shown; support_request=True teams
+           get a red left border + "Geëscaleerd" badge.
+        ══════════════════════════════════════════════════ #}
+        <section data-testid="problems-section">
+
+            <div class="flex items-center gap-3 mb-4">
+                <span class="material-symbols-outlined text-red-600">warning</span>
+                <h3 class="text-xl font-bold text-gray-900">Problemen & Blokkades</h3>
+                {% if escalated_count > 0 %}
+                <span class="bg-red-600 text-white text-xs font-bold px-2 py-0.5 uppercase tracking-wider">
+                    {{ escalated_count }} Geëscaleerd
+                </span>
+                {% endif %}
+            </div>
+
+            {% if reviews %}
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {% for review in reviews %}
+                <div class="bg-white p-5 shadow-sm border border-gray-200
+                            {% if review.support_request %}border-l-4 border-l-red-500{% else %}border-l-4 border-l-gray-300{% endif %}"
+                     data-testid="problem-card">
+                    <div class="flex items-start justify-between mb-3">
+                        <span class="text-xs font-bold text-gray-600 uppercase tracking-wider">
+                            {{ review.entity.name }}
+                        </span>
+                        {% if review.support_request %}
+                        <span class="flex items-center gap-1 bg-red-100 text-red-700 text-xs font-bold px-2 py-0.5">
+                            <span class="material-symbols-outlined text-sm leading-none">flag</span>
+                            Geëscaleerd
+                        </span>
+                        {% endif %}
+                    </div>
+                    <p class="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                        {{ review.problems or "—" }}
+                    </p>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-sm text-gray-500 italic">Geen entries voor deze periode.</p>
+            {% endif %}
+
+        </section>
+
+        {# ══════════════════════════════════════════════════
+           SECTION 2: Voortgang & Winst
+        ══════════════════════════════════════════════════ #}
+        <section data-testid="progress-section">
+
+            <div class="flex items-center gap-2 mb-4">
+                <span class="material-symbols-outlined text-green-600">check_circle</span>
+                <h3 class="text-xl font-bold text-gray-900">Voortgang & Winst</h3>
+            </div>
+
+            {% if reviews %}
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {% for review in reviews %}
+                <div class="bg-white p-5 shadow-sm border border-gray-200 border-l-4 border-l-green-500"
+                     data-testid="progress-card">
+                    <span class="text-xs font-bold text-gray-600 uppercase tracking-wider block mb-3">
+                        {{ review.entity.name }}
+                    </span>
+                    <p class="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                        {{ review.progress or "—" }}
+                    </p>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-sm text-gray-500 italic">Geen entries voor deze periode.</p>
+            {% endif %}
+
+        </section>
+
+        {# ══════════════════════════════════════════════════
+           SECTION 3: Plannen
+        ══════════════════════════════════════════════════ #}
+        <section data-testid="plans-section">
+
+            <div class="flex items-center gap-2 mb-4">
+                <span class="material-symbols-outlined text-secondary">calendar_today</span>
+                <h3 class="text-xl font-bold text-gray-900">Plannen</h3>
+            </div>
+
+            {% if reviews %}
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {% for review in reviews %}
+                <div class="bg-white p-5 shadow-sm border border-gray-200 border-l-4 border-l-secondary"
+                     data-testid="plans-card">
+                    <span class="text-xs font-bold text-gray-600 uppercase tracking-wider block mb-3">
+                        {{ review.entity.name }}
+                    </span>
+                    <p class="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                        {{ review.plans or "—" }}
+                    </p>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-sm text-gray-500 italic">Geen entries voor deze periode.</p>
+            {% endif %}
+
+        </section>
+
+        {# ══════════════════════════════════════════════════
+           SECTION 4: Vertrouwen Dashboard
+           Distribution bars + avg/delta/count stats +
+           per-goal confidence table (one row per goal).
+        ══════════════════════════════════════════════════ #}
+        <section class="bg-white shadow-sm border border-gray-200" data-testid="confidence-section">
+
+            <div class="p-6 border-b border-gray-200 flex items-center gap-2">
+                <span class="material-symbols-outlined text-yellow-500">speed</span>
+                <h3 class="text-xl font-bold text-gray-900">Vertrouwen Dashboard</h3>
+                <span class="text-sm text-gray-400 ml-2">Schaal 1–10</span>
+            </div>
+
+            <div class="p-6">
+
+                {% if total_scores > 0 %}
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+                    {# ── Distribution bars + summary stats ── #}
+                    <div>
+                        <h4 class="text-sm font-bold text-gray-700 mb-4">Verdeling scores</h4>
+
+                        <div class="space-y-3" data-testid="confidence-bars">
+
+                            {# Green: ≥ 7 #}
+                            <div class="flex items-center gap-3">
+                                <span class="w-20 text-xs font-bold text-gray-500 text-right shrink-0">≥ 7 groen</span>
+                                <div class="flex-1 h-8 bg-gray-100 overflow-hidden">
+                                    <div class="h-8 bg-green-500 flex items-center px-3"
+                                         style="width: {{ green_pct }}%"
+                                         data-testid="bar-green">
+                                        {% if green_pct > 12 %}
+                                        <span class="text-xs font-bold text-white">{{ green_pct }}%</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <span class="text-xs text-gray-500 w-8 shrink-0">{{ green_count }}</span>
+                            </div>
+
+                            {# Orange: 4–6 #}
+                            <div class="flex items-center gap-3">
+                                <span class="w-20 text-xs font-bold text-gray-500 text-right shrink-0">4–6</span>
+                                <div class="flex-1 h-8 bg-gray-100 overflow-hidden">
+                                    <div class="h-8 bg-yellow-400 flex items-center px-3"
+                                         style="width: {{ orange_pct }}%"
+                                         data-testid="bar-orange">
+                                        {% if orange_pct > 12 %}
+                                        <span class="text-xs font-bold text-white">{{ orange_pct }}%</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <span class="text-xs text-gray-500 w-8 shrink-0">{{ orange_count }}</span>
+                            </div>
+
+                            {# Red: ≤ 3 #}
+                            <div class="flex items-center gap-3">
+                                <span class="w-20 text-xs font-bold text-gray-500 text-right shrink-0">≤ 3 rood</span>
+                                <div class="flex-1 h-8 bg-gray-100 overflow-hidden">
+                                    <div class="h-8 bg-red-500 flex items-center px-3"
+                                         style="width: {{ red_pct }}%"
+                                         data-testid="bar-red">
+                                        {% if red_pct > 12 %}
+                                        <span class="text-xs font-bold text-white">{{ red_pct }}%</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <span class="text-xs text-gray-500 w-8 shrink-0">{{ red_count }}</span>
+                            </div>
+
+                        </div>{# end bars #}
+
+                        {# Summary: avg score / delta / teams submitted #}
+                        <div class="mt-6 grid grid-cols-3 divide-x divide-gray-200 bg-gray-50 border border-gray-100 p-4"
+                             data-testid="confidence-stats">
+                            <div class="text-center px-2">
+                                <div class="text-2xl font-bold text-primary">{{ avg_confidence }}</div>
+                                <div class="text-xs text-gray-400 uppercase font-bold tracking-wider mt-1">Gemiddeld</div>
+                            </div>
+                            <div class="text-center px-2">
+                                {% if confidence_delta is not none %}
+                                <div class="text-2xl font-bold
+                                            {% if confidence_delta >= 0 %}text-green-600{% else %}text-red-600{% endif %}">
+                                    {% if confidence_delta > 0 %}+{% endif %}{{ confidence_delta }}
+                                </div>
+                                {% else %}
+                                <div class="text-2xl font-bold text-gray-400">—</div>
+                                {% endif %}
+                                <div class="text-xs text-gray-400 uppercase font-bold tracking-wider mt-1">vs vorige maand</div>
+                            </div>
+                            <div class="text-center px-2">
+                                <div class="text-2xl font-bold text-gray-700">{{ submitted_team_count }}</div>
+                                <div class="text-xs text-gray-400 uppercase font-bold tracking-wider mt-1">Teams ingediend</div>
+                            </div>
+                        </div>
+
+                    </div>{# end distribution column #}
+
+                    {# ── Per-goal confidence table ── #}
+                    <div>
+                        <h4 class="text-sm font-bold text-gray-700 mb-4">Score per doel</h4>
+                        <div class="overflow-hidden border border-gray-200">
+                            <table class="w-full text-sm" data-testid="confidence-table">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Doel</th>
+                                        <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Team</th>
+                                        <th class="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Score</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100">
+                                    {% for conf, goal, entity in confidence_rows %}
+                                    <tr class="hover:bg-gray-50" data-testid="confidence-row">
+                                        <td class="px-4 py-2.5 text-gray-700 text-xs leading-snug">
+                                            {{ goal.parsed_text or goal.title }}
+                                        </td>
+                                        <td class="px-4 py-2.5 text-gray-500 text-xs">
+                                            {{ entity.name }}
+                                        </td>
+                                        <td class="px-4 py-2.5 text-right">
+                                            {# Traffic-light badge: green ≥7, orange 4-6, red ≤3 #}
+                                            {% if conf.confidence >= 7 %}
+                                            <span class="inline-block px-2 py-0.5 text-xs font-bold bg-green-100 text-green-800">
+                                                {{ conf.confidence }}
+                                            </span>
+                                            {% elif conf.confidence >= 4 %}
+                                            <span class="inline-block px-2 py-0.5 text-xs font-bold bg-yellow-100 text-yellow-800">
+                                                {{ conf.confidence }}
+                                            </span>
+                                            {% else %}
+                                            <span class="inline-block px-2 py-0.5 text-xs font-bold bg-red-100 text-red-800">
+                                                {{ conf.confidence }}
+                                            </span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>{# end table column #}
+
+                </div>{# end confidence grid #}
+
+                {% else %}
+                <p class="text-sm text-gray-500 italic">Geen vertrouwensscores voor deze periode.</p>
+                {% endif %}
+
+            </div>{# end confidence body #}
+
+        </section>
+
+    </div>{# end main content #}
+</div>{# end flex layout #}
+
+{% endblock %}

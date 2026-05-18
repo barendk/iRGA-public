@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Pagina niet gevonden - {{ org_name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto text-center py-16">
+    <span class="material-symbols-outlined text-6xl text-gray-300 mb-4">search_off</span>
+    <h2 class="text-3xl font-display font-bold text-gray-900 mb-4">Pagina niet gevonden</h2>
+    <p class="text-lg text-gray-600 mb-8">De pagina die u zoekt bestaat niet of is verplaatst.</p>
+    <a href="/" class="inline-flex items-center py-2 px-6 border border-transparent shadow-sm text-base font-bold text-white bg-primary hover:bg-blue-900 transition-colors">
+        <span class="material-symbols-outlined mr-2">home</span>
+        Terug naar Home
+    </a>
+</div>
+{% endblock %}
