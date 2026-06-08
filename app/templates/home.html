@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Home - {{ org_name }} Goal Review{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl">
+    <h2 class="text-3xl font-display font-bold text-gray-900 mb-4">
+        {{ org_name }} Goal Review
+    </h2>
+    <p class="text-lg text-gray-600 mb-8 max-w-2xl">
+        Beheer en evalueer de strategische en operationele doelstellingen van {{ org_name }}.
+        Bekijk voortgang, vul reviews in en monitor de status van alle teams.
+    </p>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% set cards = [
+            ("Doelenoverzicht", "/goals", "list_alt", "Bekijk alle doelen gefilterd op periode, niveau en type."),
+            ("Doelenboom", "/goals/tree", "account_tree", "Visualiseer de hi\u00ebrarchie van organisatie- naar teamdoelen."),
+            ("Reviews", "/reviews", "rate_review", "Vul maandelijkse team reviews en vertrouwensscores in."),
+            ("PPP Status", "/status", "dashboard", "Overzicht van Progress, Problems en Plans per team."),
+            ("Admin", "/admin", "settings", "Beheer organisatiestructuur en entiteitniveaus."),
+        ] %}
+        {% for title, href, icon, desc in cards %}
+            <a href="{{ href }}"
+               class="block bg-white border border-gray-200 shadow-sm hover:shadow-md transition-shadow p-6 group">
+                <div class="flex items-center mb-3">
+                    <span class="material-symbols-outlined text-secondary mr-2 text-2xl">{{ icon }}</span>
+                    <h3 class="text-lg font-bold text-gray-900 group-hover:text-primary transition-colors">
+                        {{ title }}
+                    </h3>
+                </div>
+                <p class="text-sm text-gray-600">{{ desc }}</p>
+            </a>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
