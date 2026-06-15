@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environment
+.venv/
+venv/
+
+# Environment variables
+.env
+
+# IDE
+.vscode/
+.idea/
+
+# macOS
+.DS_Store
+
+# Project docs (local only)
+PRD.md
+PLAN.md
+architecture.md
+Project_context.md
+example screenshots/
+test data/
+Design documentation/
+
+# Tool-specific directories
+.claude/
+.agents/
+.windsurf/
+skills/
+
+# Node (Tailwind CSS build)
+node_modules/
+
+# Database
+*.db
+*.sqlite3
+
+# Deployment
+deployment-plan.md
+deploy/
