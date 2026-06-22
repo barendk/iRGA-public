@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout private repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           # Only download the LATEST version (no history)
           fetch-depth: 1 
