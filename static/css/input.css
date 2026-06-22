@@ -1,0 +1,38 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Rijkshuisstijl base typography */
+@layer base {
+  body {
+    font-family: "RO Sans", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  .serif-font {
+    font-family: "Merriweather", "Times New Roman", serif;
+  }
+}
+
+/* Tree view connector lines (used in goal tree) */
+@layer components {
+  .tree-line {
+    @apply absolute border-l-2 border-gray-200;
+    top: 0;
+    bottom: 0;
+    left: 2rem;
+  }
+
+  .tree-branch {
+    @apply absolute border-b-2 border-l-2 border-gray-200 rounded-bl-lg;
+    width: 1.5rem;
+    height: 2.5rem;
+    left: -1rem;
+    top: -1.25rem;
+  }
+}

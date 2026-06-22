@@ -1,0 +1,443 @@
+{% extends "base.html" %}
+{% block title %}Strategiekaart - {{ org_name }}{% endblock %}
+
+{% block content %}
+
+{# ════════════════════════════════════════════════════════
+   MACROS
+   ─────────────────────────────────────────────────────────
+   confidence_badge  — traffic-light badge (green/orange/red).
+   github_link       — small external-link icon; renders nothing when
+                       the goal has no github_url.
+   domain_card(node) — domain goal card (badge + title + entity + GitHub).
+   team_card(node, free=false) — team goal card; free=true adds dashed border.
+════════════════════════════════════════════════════════ #}
+
+{% macro confidence_badge(conf) %}
+{% if conf %}
+    {% if conf.confidence >= 7 %}
+    <span class="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-green-100 text-green-800">
+        {{ conf.confidence }}/10
+    </span>
+    {% elif conf.confidence >= 4 %}
+    <span class="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-yellow-100 text-yellow-800">
+        {{ conf.confidence }}/10
+    </span>
+    {% else %}
+    <span class="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-red-100 text-red-800">
+        {{ conf.confidence }}/10
+    </span>
+    {% endif %}
+{% endif %}
+{% endmacro %}
+
+{% macro github_link(goal) %}
+{% if goal.github_url %}
+<a href="{{ goal.github_url }}"
+   target="_blank"
+   rel="noopener noreferrer"
+   title="Open in GitHub"
+   class="flex-shrink-0 text-secondary hover:text-blue-900">
+    <span class="material-symbols-outlined text-sm">open_in_new</span>
+</a>
+{% endif %}
+{% endmacro %}
+
+{% macro domain_card(node) %}
+<div class="relative">
+    <div class="absolute -top-2 right-2 z-10">
+        <span class="bg-gray-100 text-gray-600 border border-gray-200 text-xs px-2 py-0.5 uppercase tracking-wider font-bold">
+            Domein
+        </span>
+    </div>
+    <div class="w-72 bg-white border-l-4 border-secondary shadow p-4">
+        <div class="flex items-start gap-2 mb-2">
+            <span class="material-symbols-outlined text-secondary flex-shrink-0 mt-0.5">domain</span>
+            <div class="flex-grow min-w-0">
+                <p class="font-bold text-sm text-gray-900 leading-snug">
+                    {{ node.goal.parsed_text or node.goal.title }}
+                </p>
+                <p class="text-xs text-gray-500 mt-0.5">
+                    {{ node.goal.entity.name if node.goal.entity else "—" }}
+                </p>
+            </div>
+            {{ github_link(node.goal) }}
+        </div>
+        {% if node.confidence %}
+        <div class="flex justify-end">
+            {{ confidence_badge(node.confidence) }}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endmacro %}
+
+{% macro team_card(node, free=false) %}
+<div class="w-64 bg-white border border-gray-200 {% if free %}border-dashed opacity-75 {% endif %}shadow-sm p-3">
+    <div class="flex items-start justify-between gap-2 mb-1">
+        <p class="font-bold text-sm text-gray-900 leading-snug flex-grow min-w-0">
+            {{ node.goal.parsed_text or node.goal.title }}
+        </p>
+        <span class="flex-shrink-0 bg-blue-50 text-blue-700 border border-blue-100 text-xs px-1.5 py-0.5">
+            Team
+        </span>
+    </div>
+    <p class="text-xs text-gray-500 mb-2">
+        {{ node.goal.entity.name if node.goal.entity else "—" }}
+    </p>
+    <div class="flex items-center justify-between gap-2">
+        {{ confidence_badge(node.confidence) }}
+        {{ github_link(node.goal) }}
+    </div>
+</div>
+{% endmacro %}
+
+
+{# ════════════════════════════════════════════════════════
+   PAGE LAYOUT: filter sidebar (1/4) + main content (3/4)
+════════════════════════════════════════════════════════ #}
+<div class="flex flex-col lg:flex-row gap-8">
+
+    {# ══ FILTER SIDEBAR ══ #}
+    <aside class="w-full lg:w-1/4 flex-shrink-0">
+        <div class="bg-surface-light p-6 shadow-sm border border-gray-200 sticky top-4">
+
+            <h2 class="text-xl font-bold font-display text-primary mb-6 flex items-center">
+                <span class="material-symbols-outlined mr-2">filter_alt</span> Filters
+            </h2>
+
+            <form method="get" action="/goals/map" class="space-y-6">
+
+                {# ── Periode type toggle ──
+                     Buttons are type="button" so they don't submit the form.
+                     Clicking updates the hidden input and filters the period
+                     dropdown; the form submits only on Toepassen. #}
+                <div>
+                    <label class="block text-sm font-bold text-gray-900 mb-2">Type periode</label>
+                    <div class="flex shadow-sm mb-3" role="group">
+                        <button type="button"
+                                data-toggle-period="quarterly"
+                                class="flex-1 py-2 px-4 text-sm font-medium border border-r-0 {{ 'text-white bg-primary border-primary' if current_period_type == 'quarterly' else 'text-gray-900 bg-white border-gray-300 hover:bg-gray-100' }}">
+                            Kwartaal
+                        </button>
+                        <button type="button"
+                                data-toggle-period="yearly"
+                                class="flex-1 py-2 px-4 text-sm font-medium border {{ 'text-white bg-primary border-primary' if current_period_type == 'yearly' else 'text-gray-900 bg-white border-gray-300 hover:bg-gray-100' }}">
+                            Jaarlijks
+                        </button>
+                    </div>
+                    <input type="hidden" id="period-type-hidden"
+                           name="period_type_toggle"
+                           value="{{ current_period_type }}">
+                </div>
+
+                {# ── Periode select ── #}
+                <div>
+                    <label class="block text-sm font-bold text-gray-900 mb-2">Periode</label>
+                    <select id="period-select" name="period"
+                            class="block w-full pl-3 pr-10 py-2 text-sm border border-gray-300
+                                   focus:outline-none focus:ring-2 focus:ring-secondary
+                                   focus:border-secondary bg-white">
+                        <option value="">Alle perioden</option>
+                        {% for p, ptype in periods %}
+                        <option value="{{ p }}"
+                                data-type="{{ ptype }}"
+                                {% if p == current_period %}selected{% endif %}>
+                            {{ p }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                {# ── Domein ── #}
+                <div>
+                    <label class="block text-sm font-bold text-gray-900 mb-2" for="domain-select">Domein</label>
+                    <select id="domain-select" name="domain_id"
+                            class="block w-full pl-3 pr-10 py-2 text-sm border border-gray-300
+                                   focus:outline-none focus:ring-2 focus:ring-secondary
+                                   focus:border-secondary bg-white">
+                        <option value="">Alle Domeinen</option>
+                        {% for domain in domains %}
+                        <option value="{{ domain.id }}"
+                                {% if current_domain_id == domain.id %}selected{% endif %}>
+                            {{ domain.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                {# ── Submit ── #}
+                <div class="pt-2 border-t border-gray-200">
+                    <button type="submit"
+                            class="w-full inline-flex justify-center py-2 px-4 border border-transparent
+                                   shadow-sm text-sm font-bold text-white bg-secondary
+                                   hover:bg-blue-700 focus:outline-none focus:ring-2
+                                   focus:ring-offset-2 focus:ring-secondary transition-colors">
+                        Toepassen
+                    </button>
+                </div>
+
+            </form>
+        </div>
+    </aside>
+
+    {# ══ MAIN CONTENT ══ #}
+    <section class="w-full lg:w-3/4 min-w-0">
+
+        {# Page heading #}
+        <div class="mb-6">
+            <h2 class="text-3xl font-display font-bold text-gray-900 mb-2">Strategiekaart</h2>
+            <p class="text-lg text-gray-600">
+                Visueel overzicht van de doelhiërarchie per periode.
+            </p>
+        </div>
+
+        {# ══════════════════════════════════════════════════════
+           CANVAS
+           ──────────────────────────────────────────────────────
+           A fixed-height scrollable div.  Inside it, org-group
+           columns are laid out in a horizontal flex row.
+
+           Connector geometry (pure CSS, no JS measurement):
+           ─ Vertical stem: w-0.5 h-8 bg-gray-400
+           ─ Horizontal bar (>1 siblings): absolute top-0 h-0.5 bg-gray-400
+               • left-36 / right-36  for domain children (w-72 → half = 9 rem)
+               • left-32 / right-32  for team children   (w-64 → half = 8 rem)
+             This makes the bar span exactly from the centre of the first
+             sibling to the centre of the last sibling for any sibling count,
+             because each child column is exactly card-width wide.
+        ══════════════════════════════════════════════════════ #}
+        {# Outer div: scroll container only — no background here so the bg scrolls with content #}
+        <div class="overflow-auto border border-gray-200 shadow-sm"
+             style="height: 600px;">
+
+            {# Inner wrapper: carries the dot-grid background so it fills the full scrollable
+               area rather than only the visible viewport of the scroll container. #}
+            <div class="flex items-start gap-16 p-10 min-w-max min-h-full bg-gray-50"
+                 style="background-image: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9IiNjY2MiIGZpbGwtb3BhY2l0eT0iMC4yIi8+PC9zdmc+');">
+
+                {# ─────────────────────────────────────────────
+                   CONNECTED ORG GROUPS
+                   Each org goal is the top of its own column.
+                   Its domain children appear below, and each
+                   domain's team children appear below that.
+                ───────────────────────────────────────────── #}
+                {% for og in org_groups %}
+                <div class="flex flex-col items-center flex-shrink-0">
+
+                    {# ── Org card ── #}
+                    <div class="relative">
+                        {# "ORGANISATIE" badge — floats above the card's top-right corner #}
+                        <div class="absolute -top-3 right-4 z-10">
+                            <span class="bg-primary text-white text-xs px-2 py-0.5 uppercase tracking-wider font-bold shadow-sm">
+                                Organisatie
+                            </span>
+                        </div>
+                        <div class="w-80 bg-white border-l-4 border-primary shadow-lg p-5">
+                            <div class="flex items-start gap-2 mb-3">
+                                <span class="material-symbols-outlined text-primary text-2xl flex-shrink-0 mt-0.5">corporate_fare</span>
+                                <div class="flex-grow min-w-0">
+                                    <p class="font-display font-bold text-base text-gray-900 leading-snug">
+                                        {{ og.org_node.goal.parsed_text or og.org_node.goal.title }}
+                                    </p>
+                                    <p class="text-xs text-gray-500 mt-0.5">
+                                        {{ og.org_node.goal.entity.name if og.org_node.goal.entity else "—" }}
+                                    </p>
+                                </div>
+                                {{ github_link(og.org_node.goal) }}
+                            </div>
+                            {% if og.org_node.confidence %}
+                            <div class="flex justify-end">
+                                {{ confidence_badge(og.org_node.confidence) }}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    {% if og.domain_groups %}
+                    {# Vertical stem from org card down to the domain row #}
+                    <div class="w-0.5 h-8 bg-gray-400 flex-shrink-0"></div>
+
+                    {# ── Domain children row ──
+                       left-36/right-36 = 9 rem = half of w-72 domain card width.
+                       This aligns the horizontal bar's endpoints with the
+                       centre of the first and last domain sibling. #}
+                    <div class="relative flex items-start gap-8 flex-shrink-0">
+                        {% if og.domain_groups|length > 1 %}
+                        <div class="absolute top-0 left-36 right-36 h-0.5 bg-gray-400"></div>
+                        {% endif %}
+
+                        {% for dg in og.domain_groups %}
+                        {# w-72 keeps the column exactly card-width wide so the left-36/right-36
+                           horizontal bar aligns correctly even when team children are wider. #}
+                        <div class="flex flex-col items-center flex-shrink-0 w-72">
+
+                            {# Vertical stub from horizontal bar down to domain card #}
+                            <div class="w-0.5 h-8 bg-gray-400 flex-shrink-0"></div>
+
+                            {# ── Domain card ── #}
+                            {{ domain_card(dg.domain_node) }}
+
+                            {% if dg.team_nodes %}
+                            {# Vertical stem from domain card down to team row #}
+                            <div class="w-0.5 h-8 bg-gray-400 flex-shrink-0"></div>
+
+                            {# ── Team children row ──
+                               left-32/right-32 = 8 rem = half of w-64 team card width. #}
+                            <div class="relative flex items-start gap-6 flex-shrink-0">
+                                {% if dg.team_nodes|length > 1 %}
+                                <div class="absolute top-0 left-32 right-32 h-0.5 bg-gray-400"></div>
+                                {% endif %}
+
+                                {% for tn in dg.team_nodes %}
+                                <div class="flex flex-col items-center flex-shrink-0">
+                                    {# Vertical stub from horizontal bar down to team card #}
+                                    <div class="w-0.5 h-8 bg-gray-400 flex-shrink-0"></div>
+                                    {{ team_card(tn) }}
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% endif %} {# dg.team_nodes #}
+
+                        </div>
+                        {% endfor %} {# dg in og.domain_groups #}
+                    </div>
+                    {% endif %} {# og.domain_groups #}
+
+                </div>
+                {% endfor %} {# og in org_groups #}
+
+
+                {# ─────────────────────────────────────────────
+                   FREE DOMAIN GROUPS
+                   Domain goals whose org parent is absent from
+                   the current filter (e.g. domain quarterly goals
+                   whose parent is a yearly goal).  Rendered as
+                   standalone domain columns with their team
+                   children below — no connecting line above.
+                ───────────────────────────────────────────── #}
+                {% for dg in free_domain_groups %}
+                {# Push free domain cards down to the domain row when an org row is above them.
+                   mt-40 (160px) ≈ org card height + badge + breathing room. #}
+                <div class="flex flex-col items-center flex-shrink-0{% if org_groups %} mt-40{% endif %}">
+
+                    {# ── Domain card (no org above it) ── #}
+                    {{ domain_card(dg.domain_node) }}
+
+                    {% if dg.team_nodes %}
+                    <div class="w-0.5 h-8 bg-gray-400 flex-shrink-0"></div>
+
+                    <div class="relative flex items-start gap-6 flex-shrink-0">
+                        {% if dg.team_nodes|length > 1 %}
+                        <div class="absolute top-0 left-32 right-32 h-0.5 bg-gray-400"></div>
+                        {% endif %}
+
+                        {% for tn in dg.team_nodes %}
+                        <div class="flex flex-col items-center flex-shrink-0">
+                            <div class="w-0.5 h-8 bg-gray-400 flex-shrink-0"></div>
+                            {{ team_card(tn) }}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                </div>
+                {% endfor %} {# dg in free_domain_groups #}
+
+
+                {# ─────────────────────────────────────────────
+                   FREE TEAM GOALS
+                   Team goals whose domain parent is absent from
+                   the current filter.  Shown as plain cards
+                   without any connector lines.
+                ───────────────────────────────────────────── #}
+                {% for tn in free_teams %}
+                {# Push free team cards down to the team row.
+                   mt-80 (320px): clears org (160px) + domain card + connectors (~160px).
+                   mt-40 (160px) when no org row: clears only the domain row height. #}
+                <div class="flex flex-col items-center flex-shrink-0{% if org_groups %} mt-80{% elif free_domain_groups %} mt-40{% endif %}">
+                    {{ team_card(tn, free=true) }}
+                </div>
+                {% endfor %}
+
+
+                {# ── Empty state: no goals match the active filters ── #}
+                {% if not org_groups and not free_domain_groups and not free_teams %}
+                <div class="flex items-center justify-center w-full h-64 text-gray-400 italic">
+                    Geen doelen gevonden met de huidige filters.
+                </div>
+                {% endif %}
+
+            </div>
+        </div>
+        {# END CANVAS #}
+
+
+        {# ══ LEGEND ══ #}
+        <div id="map-legend" class="mt-4 inline-flex items-center gap-6 bg-white border border-gray-200 px-4 py-3 shadow-sm text-xs text-gray-600">
+            <span class="font-bold text-gray-900 font-display">Legenda</span>
+            <span class="flex items-center gap-1.5">
+                <span class="w-3 h-3 flex-shrink-0 bg-primary"></span>
+                Organisatie Doel
+            </span>
+            <span class="flex items-center gap-1.5">
+                <span class="w-3 h-3 flex-shrink-0 bg-secondary"></span>
+                Domein Doel
+            </span>
+            <span class="flex items-center gap-1.5">
+                <span class="w-3 h-3 flex-shrink-0 border border-gray-400"></span>
+                Team Doel
+            </span>
+        </div>
+
+    </section>
+</div>
+
+
+{# ════════════════════════════════════════════════════════
+   INLINE SCRIPT — period toggle UI
+   Same pattern as tree.html: toggle buttons update the hidden
+   input and show/hide period options by data-type.
+════════════════════════════════════════════════════════ #}
+<script>
+(function () {
+    var hiddenInput = document.getElementById('period-type-hidden');
+    var periodSelect = document.getElementById('period-select');
+    var toggleBtns = document.querySelectorAll('[data-toggle-period]');
+
+    function applyPeriodFilter(type) {
+        periodSelect.querySelectorAll('option[data-type]').forEach(function (opt) {
+            opt.hidden = (opt.dataset.type !== type);
+        });
+        var selected = periodSelect.options[periodSelect.selectedIndex];
+        if (selected && selected.dataset.type && selected.dataset.type !== type) {
+            periodSelect.value = '';
+        }
+    }
+
+    function setActiveBtn(activeBtn) {
+        toggleBtns.forEach(function (btn) {
+            var isActive = (btn === activeBtn);
+            btn.classList.toggle('bg-primary', isActive);
+            btn.classList.toggle('text-white', isActive);
+            btn.classList.toggle('border-primary', isActive);
+            btn.classList.toggle('bg-white', !isActive);
+            btn.classList.toggle('text-gray-900', !isActive);
+            btn.classList.toggle('border-gray-300', !isActive);
+        });
+    }
+
+    if (hiddenInput.value) {
+        applyPeriodFilter(hiddenInput.value);
+    }
+
+    toggleBtns.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            hiddenInput.value = btn.dataset.togglePeriod;
+            setActiveBtn(btn);
+            applyPeriodFilter(btn.dataset.togglePeriod);
+        });
+    });
+}());
+</script>
+{% endblock %}
